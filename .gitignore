@@ -1,0 +1,36 @@
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python (backend)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# Node / Next.js (frontend) — most are also in frontend/.gitignore
+node_modules/
+.next/
+out/
+.env.local
+.env*.local
+
+# Backend data cache (yfinance responses)
+backend/app/cache/
+
+# Notebook artifacts
+.ipynb_checkpoints/
+*.png
+notebooks/figures/
+
+# Build & logs
+dist/
+build/
+*.log
