@@ -1,4 +1,6 @@
 """FastAPI entry point for the Greeks Education API."""
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -13,12 +15,20 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# CORS: comma-separated list in the CORS_ORIGINS env var. Defaults to local
+# dev URLs so `uvicorn --reload` works out of the box. In production
+# (Railway / Fly / etc.) set CORS_ORIGINS to your frontend's URL — e.g.
+# CORS_ORIGINS=https://greek-app.vercel.app
+_default_origins = "http://localhost:3000,http://127.0.0.1:3000"
+allowed_origins = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", _default_origins).split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
