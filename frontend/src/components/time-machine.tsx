@@ -270,7 +270,7 @@ function SliderRow({
         min={min}
         max={max}
         step={step}
-        onValueChange={(v) => onChange(v[0])}
+        onValueChange={(v) => onChange(Array.isArray(v) ? v[0] : v)}
       />
       <div className="text-right font-mono text-sm">{format(value)}</div>
     </div>
