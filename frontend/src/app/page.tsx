@@ -15,6 +15,7 @@ import { GreeksPanel } from "@/components/greeks-panel";
 import { PayoffChart } from "@/components/payoff-chart";
 import { TimeMachine } from "@/components/time-machine";
 import { GreeksAtScenario } from "@/components/greeks-at-scenario";
+import { ChatWidget } from "@/components/chat-widget";
 import { GuideDialog } from "@/components/guide-dialog";
 import { WhyUseThisDialog } from "@/components/why-use-this-dialog";
 import { GreekDefinitionsDialog } from "@/components/greek-definitions-dialog";
@@ -69,6 +70,9 @@ export default function Home() {
           <GreeksAtScenario />
         </div>
       </div>
+
+      {/* Floating chat — global; positions itself bottom-right */}
+      <ChatWidget />
 
       <footer className="mt-12">
         <p className="text-xs text-slate-500">

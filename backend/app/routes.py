@@ -1,6 +1,6 @@
 """API endpoints. All position math runs locally; chain data fetched via yfinance."""
 import numpy as np
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from datetime import date
 from typing import Optional
@@ -13,8 +13,10 @@ from .schemas import (
     SimulateRequest, SimulateOut,
     ChainMetaOut, ChainOut,
     ExpiryItem, TickerSnapshotOut,
+    ChatRequest, ChatResponse, ChatToolUse,
 )
 from .math_engine import Position, Leg, simulate, bs_price
+from . import chat as chat_module
 
 router = APIRouter()
 
@@ -184,4 +186,43 @@ def ticker_snapshot(ticker: str, expiry: Optional[str] = None) -> TickerSnapshot
         atm_expiry=chosen,
         atm_strike=atm_strike,
         atm_iv=atm_iv,
+    )
+
+
+# === Chat (Claude-backed Q&A about the current position) ===
+
+def _client_ip(request: Request) -> str:
+    """Best-effort client IP — Railway sits behind a proxy that sets X-Forwarded-For."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+@router.post("/chat", response_model=ChatResponse,
+             summary="Free-form Q&A about the current position. Tool-augmented (calls the simulator).")
+def chat_endpoint(req: ChatRequest, request: Request) -> ChatResponse:
+    ip = _client_ip(request)
+    allowed, used = chat_module.check_rate_limit(ip)
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit reached ({used} messages in the last hour). Try again later.",
+        )
+
+    position = _to_position(req.position)
+    history = [{"role": m.role, "content": m.content} for m in req.messages]
+
+    try:
+        result = chat_module.chat(history, position)
+    except RuntimeError as e:
+        # Most likely ANTHROPIC_API_KEY missing
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Chat failed: {e}")
+
+    return ChatResponse(
+        content=result["content"],
+        tool_uses=[ChatToolUse(**tu) for tu in result["tool_uses"]],
+        rate_used=used,
     )

@@ -131,6 +131,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Free-form Q&A about the current position. Tool-augmented (calls the simulator). */
+        post: operations["chat_endpoint_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -196,6 +213,52 @@ export interface components {
             open_interest: number;
             /** Iv */
             iv: number;
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Content */
+            content: string;
+        };
+        /** ChatRequest */
+        ChatRequest: {
+            /** Messages */
+            messages: components["schemas"]["ChatMessage"][];
+            position: components["schemas"]["PositionIn"];
+        };
+        /** ChatResponse */
+        ChatResponse: {
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role: "assistant";
+            /** Content */
+            content: string;
+            /** Tool Uses */
+            tool_uses?: components["schemas"]["ChatToolUse"][];
+            /** Rate Used */
+            rate_used: number;
+        };
+        /** ChatToolUse */
+        ChatToolUse: {
+            /** Name */
+            name: string;
+            /** Input */
+            input: {
+                [key: string]: unknown;
+            };
+            /** Output */
+            output?: {
+                [key: string]: unknown;
+            } | null;
+            /** Error */
+            error?: string | null;
         };
         /** ExpiryItem */
         ExpiryItem: {
@@ -605,6 +668,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TickerSnapshotOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chat_endpoint_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatResponse"];
                 };
             };
             /** @description Validation Error */

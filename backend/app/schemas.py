@@ -86,6 +86,32 @@ class ExpiryItem(BaseModel):
     days_to_expiry: int
 
 
+# === Chat (Claude-backed Q&A) ===
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: List[ChatMessage] = Field(min_length=1, max_length=40)
+    position: PositionIn
+
+
+class ChatToolUse(BaseModel):
+    name: str
+    input: dict
+    output: Optional[dict] = None
+    error: Optional[str] = None
+
+
+class ChatResponse(BaseModel):
+    role: Literal["assistant"] = "assistant"
+    content: str
+    tool_uses: List[ChatToolUse] = Field(default_factory=list)
+    rate_used: int  # how many messages this IP has used this hour
+
+
 class TickerSnapshotOut(BaseModel):
     """One-call payload for the frontend: spot, available expiries (with DTE
     pre-computed), and the ATM-call implied vol for the nearest expiry."""

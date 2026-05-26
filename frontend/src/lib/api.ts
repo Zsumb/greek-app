@@ -31,6 +31,12 @@ export type TickerSnapshot =
   paths["/ticker/{ticker}/snapshot"]["get"]["responses"]["200"]["content"]["application/json"];
 export type ExpiryItem = TickerSnapshot["expiries"][number];
 
+export type ChatRequest =
+  paths["/chat"]["post"]["requestBody"]["content"]["application/json"];
+export type ChatResponse =
+  paths["/chat"]["post"]["responses"]["200"]["content"]["application/json"];
+export type ChatMessage = ChatRequest["messages"][number];
+
 export type LegPrices =
   paths["/position/leg-prices"]["post"]["responses"]["200"]["content"]["application/json"];
 
@@ -69,4 +75,6 @@ export const api = {
     postJSON<LegPrices>("/position/leg-prices", body),
   tickerSnapshot: (ticker: string) =>
     getJSON<TickerSnapshot>(`/ticker/${encodeURIComponent(ticker)}/snapshot`),
+  chat: (body: ChatRequest) =>
+    postJSON<ChatResponse>("/chat", body),
 };

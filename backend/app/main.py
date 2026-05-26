@@ -1,6 +1,12 @@
 """FastAPI entry point for the Greeks Education API."""
 import os
 
+from dotenv import load_dotenv
+# Load backend/.env for local dev. override=True so a local .env beats any
+# stale/empty env var the shell may have inherited. In Railway/production
+# there's no .env file so this is a no-op — env vars come from the platform.
+load_dotenv(override=True)
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

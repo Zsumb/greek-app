@@ -4,6 +4,8 @@ pydantic>=2.9
 yfinance>=0.2.40
 numpy>=1.26
 scipy>=1.11
+anthropic>=0.40
+python-dotenv>=1.0
 
 # Tests
 pytest>=8.0
