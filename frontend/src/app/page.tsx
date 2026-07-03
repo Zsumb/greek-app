@@ -1,88 +1,208 @@
 /**
- * Home page — composes the four working surfaces:
- *   Strategy Builder | Live Greeks
- *   Payoff Chart
- *   Time Machine
- *
- * Greek definitions, "Why use this", and "User guide" each live in modal
- * dialogs triggered from the header.
- *
- * State is in the Zustand store at `src/lib/store.ts`.
+ * Landing page — hero, features, how-it-works, CTA.
+ * Playground itself lives at /playground.
  */
-import { Sigma } from "lucide-react";
-import { StrategyBuilder } from "@/components/strategy-builder";
-import { GreeksPanel } from "@/components/greeks-panel";
-import { PayoffChart } from "@/components/payoff-chart";
-import { TimeMachine } from "@/components/time-machine";
-import { GreeksAtScenario } from "@/components/greeks-at-scenario";
-import { ChatWidget } from "@/components/chat-widget";
-import { GuideDialog } from "@/components/guide-dialog";
-import { WhyUseThisDialog } from "@/components/why-use-this-dialog";
-import { GreekDefinitionsDialog } from "@/components/greek-definitions-dialog";
+import Link from "next/link";
+import {
+  ArrowRight,
+  BarChart3,
+  Clock,
+  MessageSquare,
+  TrendingUp,
+} from "lucide-react";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <main className="mx-auto w-full max-w-[1382px] px-6 py-10">
-      {/* Header — title + descriptive subtitle on the left, three horizontal
-          outline buttons on the right (aligned to the bottom of the title block). */}
-      <header className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-5 lg:gap-6">
-        <div className="lg:col-span-3">
-          <h1 className="flex items-center gap-3 text-[28px] font-semibold tracking-tight text-red-900 sm:text-[34px] dark:text-red-400">
-            <Sigma className="h-7 w-7 shrink-0 sm:h-9 sm:w-9" />
-            Options Greeks Playground
-          </h1>
-
-          <p className="mt-4 max-w-prose text-base font-medium leading-relaxed text-slate-900 dark:text-slate-100">
-            Every options trade tells a story. This tool lets you read it.
+    <main className="mx-auto w-full max-w-[1382px] px-6">
+      {/* ================================================================
+          HERO
+         ================================================================ */}
+      <section className="pt-14 pb-16 sm:pt-20 sm:pb-24">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="inline-flex items-center gap-2 rounded-full border border-red-900/20 bg-red-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-red-900 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-400">
+            Options education · Free
           </p>
-        </div>
-
-        {/* Two-row stack on the right:
-              Row 1: Why use this — full-width, filled maroon (primary CTA)
-              Row 2: the two secondary buttons side-by-side, splitting Row 1's width */}
-        <div className="flex flex-col gap-2 self-end lg:col-span-2">
-          <WhyUseThisDialog />
-          <div className="grid grid-cols-2 gap-2">
-            <GreekDefinitionsDialog />
-            <GuideDialog />
+          <h1 className="mt-6 text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl md:text-6xl dark:text-slate-100">
+            Every options trade{" "}
+            <span className="text-red-900 dark:text-red-400">tells a story.</span>
+            <br />
+            This tool lets you read it.
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-400">
+            See the breakdown of your option P&amp;L into{" "}
+            <span className="font-semibold text-red-900 dark:text-red-400">
+              Δ / Γ / Θ / Vega
+            </span>{" "}
+            contributions in dollars. Simulate any scenario. Ask an AI trained
+            on your live position — all before you risk capital.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="/playground"
+              className="inline-flex items-center gap-2 rounded-md bg-red-900 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-red-950 dark:bg-red-700 dark:hover:bg-red-800"
+            >
+              Open the Playground
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+            <Link
+              href="/learn"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-300 bg-white px-6 py-3 text-base font-semibold text-slate-900 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800"
+            >
+              Read the Greeks primer
+            </Link>
           </div>
         </div>
-      </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <StrategyBuilder />
+      </section>
+
+      {/* ================================================================
+          FEATURE GRID
+         ================================================================ */}
+      <section className="border-t border-slate-200 py-16 sm:py-20 dark:border-slate-800">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl dark:text-slate-100">
+            What you get
+          </h2>
+          <p className="mt-4 text-slate-600 dark:text-slate-400">
+            Four features most free options tools skip.
+          </p>
         </div>
-        <div className="lg:col-span-2">
-          <GreeksPanel />
+        <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <FeatureCard
+            icon={<BarChart3 className="h-6 w-6" />}
+            title="P&L Decomposition"
+            body="Break any scenario's P&L into Δ / Γ / Θ / Vega dollar contributions — with the formula visible. The differentiator."
+          />
+          <FeatureCard
+            icon={<Clock className="h-6 w-6" />}
+            title="Time Machine"
+            body="Sliders for days, spot shock, IV shock — plus preset scenarios that isolate one Greek at a time, and a custom-scenario input for exact values."
+          />
+          <FeatureCard
+            icon={<MessageSquare className="h-6 w-6" />}
+            title="AI Assistant"
+            body="Claude reads your live position and calls the actual simulator to answer 'what if' questions. Real numbers, not hallucinations."
+          />
+          <FeatureCard
+            icon={<TrendingUp className="h-6 w-6" />}
+            title="Live Market Data"
+            body="Type any US ticker — spot, real expiry dates, and ATM implied volatility autofill from yfinance."
+          />
         </div>
-      </div>
+      </section>
 
-      <div className="mt-6">
-        <PayoffChart />
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="lg:col-span-3">
-          <TimeMachine />
+      {/* ================================================================
+          HOW IT WORKS
+         ================================================================ */}
+      <section className="border-t border-slate-200 py-16 sm:py-20 dark:border-slate-800">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl dark:text-slate-100">
+            How it works
+          </h2>
         </div>
-        <div className="lg:col-span-2">
-          <GreeksAtScenario />
+        <div className="mx-auto mt-12 grid max-w-5xl grid-cols-1 gap-8 sm:grid-cols-3">
+          <Step
+            n="1"
+            title="Build a position"
+            body="Pick a preset (long call, iron condor, straddle…) or add custom legs. Fetch a live US ticker to autofill spot, expiries, and ATM IV."
+          />
+          <Step
+            n="2"
+            title="Read your Greeks in dollars"
+            body="Δ / Γ / Θ / Vega / Rho aggregated across all your legs. Every value comes with a plain-English interpretation."
+          />
+          <Step
+            n="3"
+            title="Simulate before you trade"
+            body="Move time forward. Shock the underlying. Jolt IV. See your P&L broken down by Greek — with the exact formula that produced each number."
+          />
         </div>
-      </div>
+      </section>
 
-      {/* Floating chat — global; positions itself bottom-right */}
-      <ChatWidget />
+      {/* ================================================================
+          WHO IT'S FOR
+         ================================================================ */}
+      <section className="border-t border-slate-200 py-16 sm:py-20 dark:border-slate-800">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl dark:text-slate-100">
+            Who it&apos;s for
+          </h2>
+          <p className="mt-6 text-lg leading-relaxed text-slate-700 dark:text-slate-300">
+            <span className="font-semibold">Retail options traders, 6-24 months in</span>{" "}
+            — you know what a call is, you&apos;ve done a wheel or two, but the
+            Greeks still feel like homework. You want to stop &ldquo;trading by
+            vibes&rdquo; and start understanding{" "}
+            <em>why</em> your trades work or don&apos;t.
+          </p>
+          <p className="mt-4 text-lg leading-relaxed text-slate-700 dark:text-slate-300">
+            Not for institutional traders (you have Bloomberg). Not for pure
+            beginners (start with a basic options course first).
+          </p>
+        </div>
+      </section>
 
-      <footer className="mt-12">
-        <p className="text-xs text-slate-500">
-          Educational tool only. Not trading advice.
-        </p>
-        <hr className="my-4 border-slate-200 dark:border-slate-800" />
-        <p className="text-center text-xs text-slate-500">
-          Created by — Sumbul Amin, Claude
-        </p>
-      </footer>
+      {/* ================================================================
+          FINAL CTA
+         ================================================================ */}
+      <section className="border-t border-slate-200 py-16 sm:py-24 dark:border-slate-800">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl dark:text-slate-100">
+            See the Greeks in dollars.
+          </h2>
+          <p className="mt-4 text-lg text-slate-600 dark:text-slate-400">
+            Free. No sign-up. Educational only.
+          </p>
+          <Link
+            href="/playground"
+            className="mt-8 inline-flex items-center gap-2 rounded-md bg-red-900 px-8 py-4 text-lg font-semibold text-white shadow-sm transition-colors hover:bg-red-950 dark:bg-red-700 dark:hover:bg-red-800"
+          >
+            Open the Playground
+            <ArrowRight className="h-5 w-5" />
+          </Link>
+        </div>
+      </section>
     </main>
+  );
+}
+
+// ============================================================================
+
+function FeatureCard({
+  icon,
+  title,
+  body,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="rounded-xl border-t-4 border-t-red-900 bg-white p-6 shadow-sm ring-1 ring-slate-200 transition-shadow hover:shadow-lg dark:border-t-red-400 dark:bg-slate-900 dark:ring-slate-800">
+      <div className="mb-4 inline-flex rounded-lg bg-red-900/10 p-2.5 text-red-900 dark:bg-red-400/10 dark:text-red-400">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        {title}
+      </h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        {body}
+      </p>
+    </div>
+  );
+}
+
+function Step({ n, title, body }: { n: string; title: string; body: string }) {
+  return (
+    <div>
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-900 text-lg font-bold text-white dark:bg-red-700">
+        {n}
+      </div>
+      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+        {title}
+      </h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+        {body}
+      </p>
+    </div>
   );
 }

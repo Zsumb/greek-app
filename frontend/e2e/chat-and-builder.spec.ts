@@ -11,7 +11,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Builder", () => {
   test("J3: switching strategy preset changes Live Greeks values", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     await expect(page.getByText("Live Greeks", { exact: true })).toBeVisible();
 
     // Capture the first font-mono number visible in the Greeks panel area
@@ -28,7 +28,7 @@ test.describe("Builder", () => {
   });
 
   test("K4: editing Spot triggers refetch but does NOT reset shocks", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     // Apply a non-zero scenario
     await page.getByRole("button", { name: "Tomorrow +2%" }).click();
     const headline = page.locator(".font-mono.text-3xl").first();
@@ -48,7 +48,7 @@ test.describe("Builder", () => {
 
 test.describe("Chat", () => {
   test("J9: chat widget opens and closes", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     const launcher = page.getByRole("button", { name: "Open chat" });
     await launcher.click();
     await expect(page.getByText("Ask about your position")).toBeVisible({ timeout: 5_000 });
@@ -74,7 +74,7 @@ test.describe("Chat", () => {
       test.skip(true, "ANTHROPIC_API_KEY not set on backend");
     }
 
-    await page.goto("/");
+    await page.goto("/playground");
     await page.getByRole("button", { name: "Open chat" }).click();
 
     const textarea = page.getByPlaceholder(/Ask anything/);
@@ -91,7 +91,7 @@ test.describe("Chat", () => {
 
 test.describe("Ticker", () => {
   test("J8: ticker fetch autofills Spot/IV (live yfinance)", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     const tickerInput = page.getByPlaceholder(/e\.g\. SPY/);
     await tickerInput.fill("SPY");
     await page.getByRole("button", { name: /Fetch/ }).click();
@@ -113,7 +113,7 @@ test.describe("Error handling", () => {
     await page.route("**/*/position/greeks", (route) =>
       route.fulfill({ status: 503, contentType: "application/json", body: '{"detail":"down"}' }),
     );
-    await page.goto("/");
+    await page.goto("/playground");
     await expect(page.getByText(/Couldn.t compute Greeks/i))
       .toBeVisible({ timeout: 15_000 });
   });

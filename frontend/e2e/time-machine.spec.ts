@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Time Machine", () => {
   test("J5: clicking a scenario preset highlights it (maroon = bg-primary)", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     const btn = page.getByRole("button", { name: "Tomorrow flat" });
     await btn.click();
     // Active scenario button switches from variant="outline" to variant="default"
@@ -18,7 +18,7 @@ test.describe("Time Machine", () => {
   });
 
   test("J4: scenario preset produces a non-zero Scenario P&L", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     await page.getByRole("button", { name: "Tomorrow +2%" }).click();
     // Headline value uses font-mono text-3xl; it should not read $0.00
     const headline = page.locator(".font-mono.text-3xl").first();
@@ -27,7 +27,7 @@ test.describe("Time Machine", () => {
   });
 
   test("J6: custom scenario dialog validates out-of-range input", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     await page.getByRole("button", { name: "Custom scenario" }).click();
     // Dialog open — its title is "Custom scenario"
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
@@ -42,7 +42,7 @@ test.describe("Time Machine", () => {
   });
 
   test("J7: switching strategy preset auto-resets shocks", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     // Apply non-zero scenario
     await page.getByRole("button", { name: "Tomorrow +2%" }).click();
     const headline = page.locator(".font-mono.text-3xl").first();
@@ -57,7 +57,7 @@ test.describe("Time Machine", () => {
   });
 
   test("K6: extreme spot shock triggers residual warning", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     // Open Custom scenario, set spot shock to the slider max (~$100)
     await page.getByRole("button", { name: "Custom scenario" }).click();
     const inputs = page.getByRole("dialog").locator('input[type="number"]');

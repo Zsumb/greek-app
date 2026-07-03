@@ -9,15 +9,38 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Smoke", () => {
   test("J1: page loads with key headings", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.locator("h1")).toContainText("Options Greeks Playground");
+    await page.goto("/playground");
+    await expect(page.locator("h1")).toContainText("Playground");
     await expect(page.getByText("Strategy Builder")).toBeVisible();
     await expect(page.getByText("Live Greeks")).toBeVisible();
     await expect(page.getByText("Time Machine")).toBeVisible();
   });
 
-  test("J2: default position populates Live Greeks", async ({ page }) => {
+  test("landing page loads with hero + CTA", async ({ page }) => {
     await page.goto("/");
+    await expect(page.locator("h1")).toContainText(/tells a story/);
+    // The "Open the Playground" CTA is present multiple times; check at least one
+    await expect(
+      page.getByRole("link", { name: /Open the Playground/i }).first()
+    ).toBeVisible();
+  });
+
+  test("nav: landing → playground → learn → about", async ({ page }) => {
+    await page.goto("/");
+    // Nav to Playground via header
+    await page.getByRole("link", { name: /^Playground$/ }).first().click();
+    await expect(page).toHaveURL(/\/playground$/);
+    // Nav to Learn
+    await page.getByRole("link", { name: /^Learn$/ }).first().click();
+    await expect(page).toHaveURL(/\/learn$/);
+    await expect(page.locator("h1")).toContainText(/Greeks primer/i);
+    // Nav to About
+    await page.getByRole("link", { name: /^About$/ }).first().click();
+    await expect(page).toHaveURL(/\/about$/);
+  });
+
+  test("J2: default position populates Live Greeks", async ({ page }) => {
+    await page.goto("/playground");
     // Live Greeks card title
     await expect(page.getByText("Live Greeks", { exact: true })).toBeVisible();
     // After TanStack Query resolves, the Delta value should be in the document
@@ -28,7 +51,7 @@ test.describe("Smoke", () => {
   });
 
   test("K3: iron condor round-trip — builder → Greeks → payoff", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/playground");
     // Wait for initial render to settle
     await expect(page.getByText("Live Greeks", { exact: true })).toBeVisible();
 

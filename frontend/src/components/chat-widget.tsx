@@ -2,7 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { MessageCircle, Send, Sparkles, X, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import {
+  ArrowRight,
+  MessageCircle,
+  Send,
+  Sparkles,
+  X,
+  AlertCircle,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -106,7 +114,9 @@ export function ChatWidget() {
             ref={scrollRef}
             className="flex-1 space-y-3 overflow-y-auto px-4 py-4"
           >
-            {history.length === 0 && !mutation.isPending && <EmptyHints />}
+            {history.length === 0 && !mutation.isPending && (
+              <EmptyHints hasPosition={legs.length > 0} />
+            )}
             {history.map((m, i) => (
               <MessageBubble key={i} message={m} />
             ))}
@@ -128,37 +138,54 @@ export function ChatWidget() {
             )}
           </div>
 
-          {/* Composer */}
-          <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
-            {legs.length === 0 && (
-              <p className="mb-2 text-xs text-amber-700 dark:text-amber-400">
-                Build a position first — answers use your actual legs &amp; Greeks.
+          {/* Composer OR "Go to Playground" CTA when no position exists.
+              The chat is fundamentally about the user's live position, so
+              on non-playground pages we send them to /playground rather
+              than showing a disabled input. */}
+          {legs.length === 0 ? (
+            <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+              <p className="mb-3 text-sm text-slate-700 dark:text-slate-300">
+                Chat answers use your live position — build one first.
               </p>
-            )}
-            <div className="flex items-end gap-2">
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={onKey}
-                placeholder="Ask anything about your Greeks or run a scenario…"
-                rows={2}
-                disabled={legs.length === 0 || mutation.isPending}
-                className="flex-1 resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-red-900 focus:outline-none focus:ring-1 focus:ring-red-900 disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:focus:border-red-400 dark:focus:ring-red-400"
-              />
-              <Button
-                type="button"
-                onClick={send}
-                disabled={!draft.trim() || mutation.isPending || legs.length === 0}
-                className="bg-red-900 hover:bg-red-950 dark:bg-red-700 dark:hover:bg-red-800"
-                aria-label="Send"
+              <Link
+                href="/playground"
+                onClick={() => setOpen(false)}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-red-900 px-4 py-2 text-sm font-semibold text-white hover:bg-red-950 dark:bg-red-700 dark:hover:bg-red-800"
               >
-                <Send className="h-4 w-4" />
-              </Button>
+                Open the Playground
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <p className="mt-3 text-[10px] text-zinc-400">
+                Educational only. Not trading advice.
+              </p>
             </div>
-            <p className="mt-2 text-[10px] text-zinc-400">
-              Educational only. Not trading advice.
-            </p>
-          </div>
+          ) : (
+            <div className="border-t border-zinc-200 p-3 dark:border-zinc-800">
+              <div className="flex items-end gap-2">
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={onKey}
+                  placeholder="Ask anything about your Greeks or run a scenario…"
+                  rows={2}
+                  disabled={mutation.isPending}
+                  className="flex-1 resize-none rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm placeholder:text-zinc-400 focus:border-red-900 focus:outline-none focus:ring-1 focus:ring-red-900 disabled:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:focus:border-red-400 dark:focus:ring-red-400"
+                />
+                <Button
+                  type="button"
+                  onClick={send}
+                  disabled={!draft.trim() || mutation.isPending}
+                  className="bg-red-900 hover:bg-red-950 dark:bg-red-700 dark:hover:bg-red-800"
+                  aria-label="Send"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="mt-2 text-[10px] text-zinc-400">
+                Educational only. Not trading advice.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </>
@@ -190,7 +217,22 @@ function MessageBubble({
   );
 }
 
-function EmptyHints() {
+function EmptyHints({ hasPosition }: { hasPosition: boolean }) {
+  if (!hasPosition) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-slate-700 dark:text-slate-300">
+          The chat assistant reads your current position, runs scenarios
+          through the simulator, and suggests adjustments — all with real
+          numbers, not hallucinations.
+        </p>
+        <p className="text-sm text-slate-700 dark:text-slate-300">
+          Head to the Playground to build a position, then come back here to
+          ask about it.
+        </p>
+      </div>
+    );
+  }
   const hints = [
     "What does my delta mean in dollars?",
     "What happens if SPY drops 3% in 5 days?",
