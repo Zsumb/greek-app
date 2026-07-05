@@ -18,6 +18,7 @@ import { GreeksAtScenario } from "@/components/greeks-at-scenario";
 import { GuideDialog } from "@/components/guide-dialog";
 import { WhyUseThisDialog } from "@/components/why-use-this-dialog";
 import { GreekDefinitionsDialog } from "@/components/greek-definitions-dialog";
+import { AskAiButton } from "@/components/ask-ai-button";
 
 export default function PlaygroundPage() {
   return (
@@ -39,6 +40,7 @@ export default function PlaygroundPage() {
             <GreekDefinitionsDialog />
             <GuideDialog />
           </div>
+          <AskAiButton />
         </div>
       </header>
 

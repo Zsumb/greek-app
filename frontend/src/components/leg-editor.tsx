@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ChainPickerDialog } from "@/components/chain-picker-dialog";
 import { usePosition, type Leg } from "@/lib/store";
 
 /** Shared grid template — keep in sync between header (in strategy-builder)
@@ -149,13 +150,14 @@ export function LegEditor({
         </Select>
       </div>
 
-      {/* Strike */}
+      {/* Strike — with a "chain" shortcut when a ticker is loaded */}
       {isStock ? (
         <DisabledCell label="Strike" />
       ) : (
         <div className="flex flex-col gap-1">
-          <label className="text-xs uppercase tracking-wide text-zinc-500">
-            Strike
+          <label className="flex items-center justify-between text-xs uppercase tracking-wide text-zinc-500">
+            <span>Strike</span>
+            <ChainPickerDialog leg={leg} />
           </label>
           <Input
             type="number"

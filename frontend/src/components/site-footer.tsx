@@ -26,6 +26,12 @@ export function SiteFooter() {
             <Link href="/about" className="hover:text-slate-900 dark:hover:text-slate-100">
               About
             </Link>
+            <Link
+              href="/about#methodology"
+              className="hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              Methodology
+            </Link>
           </nav>
         </div>
         <hr className="my-6 border-slate-200 dark:border-slate-800" />

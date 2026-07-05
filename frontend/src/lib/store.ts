@@ -43,6 +43,11 @@ type PositionStore = {
   dSigma: number; // decimal IV change
   dDays: number; // calendar days forward
 
+  // Chat panel visibility — in the store so any surface (playground header
+  // button, floating bubble) can open the same widget.
+  chatOpen: boolean;
+  setChatOpen: (open: boolean) => void;
+
   // Actions
   setS: (S: number) => void;
   setSigma: (sigma: number) => void;
@@ -80,6 +85,9 @@ export const usePosition = create<PositionStore>((set, get) => ({
   availableExpiries: [],
 
   ...ZERO_SHOCKS,
+
+  chatOpen: false,
+  setChatOpen: (open) => set({ chatOpen: open }),
 
   setS: (S) => set({ S }),
   setSigma: (sigma) => set({ sigma }),

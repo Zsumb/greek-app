@@ -27,7 +27,10 @@ import { usePosition } from "@/lib/store";
  *   - "Reset" clears history without closing panel
  */
 export function ChatWidget() {
-  const [open, setOpen] = useState(false);
+  // Open state lives in the store so the playground's "Ask the AI" button
+  // can open this same panel.
+  const open = usePosition((s) => s.chatOpen);
+  const setOpen = usePosition((s) => s.setChatOpen);
   const [draft, setDraft] = useState("");
   const [history, setHistory] = useState<ChatMessage[]>([]);
   const toApiPosition = usePosition((s) => s.toApiPosition);
@@ -76,7 +79,7 @@ export function ChatWidget() {
       <button
         type="button"
         aria-label={open ? "Close chat" : "Open chat"}
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-red-900 text-white shadow-lg transition-transform hover:scale-105 hover:bg-red-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-900 focus-visible:ring-offset-2 dark:bg-red-700 dark:hover:bg-red-800"
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}

@@ -35,6 +35,29 @@ export default function AboutPage() {
           market data from yfinance.
         </p>
 
+        <h2
+          id="methodology"
+          className="mt-10 scroll-mt-24 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100"
+        >
+          Methodology
+        </h2>
+        <p>
+          All prices and Greeks are computed with the Black-Scholes model for{" "}
+          <strong>European-style exercise</strong>, with{" "}
+          <strong>no dividend adjustment</strong>, a{" "}
+          <strong>flat risk-free rate</strong> (user-set, default 5%), and{" "}
+          <strong>calendar-day/365</strong> time. Each leg is priced at its own
+          implied volatility when one is set (or fetched from the chain);
+          otherwise the position-level IV applies. Real US options are mostly
+          American-style — for calls on non-dividend payers the difference is
+          negligible, but <strong>deep-ITM puts and options around
+          ex-dividend dates can diverge meaningfully</strong> from these model
+          values. Market data is 15-minute-delayed via yfinance. The P&amp;L
+          decomposition uses first-order Greeks plus ½Γ·dS²; the residual line
+          shows what the approximation misses. Educational only — not an
+          execution or pricing service.
+        </p>
+
         <h2 className="mt-10 text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
           Credits
         </h2>
