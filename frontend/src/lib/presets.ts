@@ -12,6 +12,9 @@ export type PresetKey =
   | "long_straddle"
   | "bull_call_spread"
   | "iron_condor"
+  | "covered_call"
+  | "collar"
+  | "cash_secured_put"
   | "custom";
 
 export const PRESET_LABELS: Record<PresetKey, string> = {
@@ -20,6 +23,9 @@ export const PRESET_LABELS: Record<PresetKey, string> = {
   long_straddle: "Long Straddle",
   bull_call_spread: "Bull Call Spread",
   iron_condor: "Iron Condor",
+  covered_call: "Covered Call",
+  collar: "Collar",
+  cash_secured_put: "Cash-Secured Put",
   custom: "Custom",
 };
 
@@ -60,6 +66,26 @@ export function presetLegs(preset: PresetKey, S: number): LegInput[] {
         { kind: "call", strike: atm + 10, expiry_days: d, quantity: -1 },
         { kind: "call", strike: atm + 20, expiry_days: d, quantity: 1 },
       ];
+
+    case "covered_call":
+      // Long 100 shares + short OTM call against them (qty 1 stock = 100 sh)
+      return [
+        { kind: "stock", strike: 0, expiry_days: 0, quantity: 1 },
+        { kind: "call", strike: atm + 10, expiry_days: d, quantity: -1 },
+      ];
+
+    case "collar":
+      // Long stock, protected by a long OTM put, financed by a short OTM call
+      return [
+        { kind: "stock", strike: 0, expiry_days: 0, quantity: 1 },
+        { kind: "put", strike: atm - 10, expiry_days: d, quantity: 1 },
+        { kind: "call", strike: atm + 10, expiry_days: d, quantity: -1 },
+      ];
+
+    case "cash_secured_put":
+      // Short OTM put; the "cash reserve" isn't a leg — max loss assumes
+      // assignment at the strike.
+      return [{ kind: "put", strike: atm - 10, expiry_days: d, quantity: -1 }];
 
     case "custom":
       return [];

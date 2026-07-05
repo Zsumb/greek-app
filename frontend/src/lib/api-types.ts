@@ -31,9 +31,10 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Per-share Black-Scholes price for each leg
+         * Per-share model price for each leg (per-leg IV respected)
          * @description Returns one per-share price per leg, in the input order. Multiply by
          *     100 × leg.quantity to get the per-leg cost / credit in dollars.
+         *     Stock legs price at spot; option legs use their own IV when set.
          */
         post: operations["position_leg_prices_position_leg_prices_post"];
         delete?: never;
@@ -293,19 +294,34 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "call" | "put";
-            /** Strike */
+            kind: "call" | "put" | "stock";
+            /**
+             * Strike
+             * @description ignored for stock legs
+             * @default 0
+             */
             strike: number;
             /**
              * Expiry Days
-             * @description calendar days from position-open
+             * @description calendar days from position-open; ignored for stock legs
+             * @default 0
              */
             expiry_days: number;
             /**
              * Quantity
-             * @description contracts; negative = short
+             * @description contracts (1 = 100 shares); negative = short
              */
             quantity: number;
+            /**
+             * Sigma
+             * @description per-leg IV override in decimal (0.22 = 22%); falls back to position sigma
+             */
+            sigma?: number | null;
+            /**
+             * Entry Price
+             * @description actual fill per share; affects cost basis only. Defaults to model price.
+             */
+            entry_price?: number | null;
         };
         /**
          * LegPricesOut
@@ -319,6 +335,8 @@ export interface components {
         PayoffOut: {
             /** Initial Value */
             initial_value: number;
+            /** Cost Basis */
+            cost_basis: number;
             /** Points */
             points: components["schemas"]["PayoffPoint"][];
         };

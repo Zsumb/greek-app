@@ -31,7 +31,9 @@ function makePayoff(
       pnl_today: pnlToday ? pnlToday(spot) : pnlExpiry(spot),
     };
   });
-  return { initial_value, points };
+  // Tests don't override entry prices, so cost_basis mirrors initial_value —
+  // same invariant the backend guarantees.
+  return { initial_value, cost_basis: initial_value, points };
 }
 
 // === Specific position shapes (per contract = 100 shares) ===

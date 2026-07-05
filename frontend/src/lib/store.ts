@@ -7,7 +7,15 @@ import { create } from "zustand";
 import type { ExpiryItem, Position, TickerSnapshot } from "./api";
 import { presetLegs, type PresetKey } from "./presets";
 
-export type LegInput = Position["legs"][number];
+type ApiLeg = Position["legs"][number];
+/** Like the API leg but with strike/expiry_days always present — the
+ *  backend defaults them for stock legs, but the frontend always sends
+ *  explicit values (0 for stock), keeping arithmetic (min/max over legs)
+ *  free of undefined checks. */
+export type LegInput = Omit<ApiLeg, "strike" | "expiry_days"> & {
+  strike: number;
+  expiry_days: number;
+};
 export type Leg = LegInput & { id: string };
 
 let _legId = 0;
@@ -134,10 +142,10 @@ export const usePosition = create<PositionStore>((set, get) => ({
           ? s.legs
           : presetLegs(s.preset, nextS).map((l) => ({ ...l, id: nextId() }));
 
-      const newLegs = baseLegs.map((l) => ({
-        ...l,
-        expiry_days: snapDTE(l.expiry_days),
-      }));
+      const newLegs = baseLegs.map((l) =>
+        // Stock legs have no expiry — don't snap them to option expiries.
+        l.kind === "stock" ? l : { ...l, expiry_days: snapDTE(l.expiry_days) },
+      );
 
       return {
         S: nextS,

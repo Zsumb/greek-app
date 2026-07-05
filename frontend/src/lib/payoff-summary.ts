@@ -7,7 +7,10 @@
 import type { PayoffResponse } from "./api";
 
 export type PayoffSummary = {
-  /** Negative = credit received, positive = debit paid. */
+  /** Negative = credit received, positive = debit paid.
+   *  Uses the entry-price-based cost basis when the user has overridden
+   *  fills; falls back to model value otherwise (backend guarantees
+   *  cost_basis === initial_value in that case). */
   netDebit: number;
 
   /** Max profit AT EXPIRY across the sampled spot range. */
@@ -80,7 +83,7 @@ export function summarizePayoff(payoff: PayoffResponse): PayoffSummary {
   const profitableCount = expiry.filter((v) => v > 0).length;
 
   return {
-    netDebit: payoff.initial_value,
+    netDebit: payoff.cost_basis,
     maxProfit,
     maxProfitUnbounded,
     maxLoss,

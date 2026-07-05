@@ -108,6 +108,41 @@ describe("I6: toApiPosition strips internal ids", () => {
   });
 });
 
+// === Phase B — stock legs & new presets ===
+describe("Phase B: stock legs and income presets", () => {
+  it("covered_call preset builds stock + short call", () => {
+    usePosition.getState().applyPreset("covered_call");
+    const legs = usePosition.getState().legs;
+    expect(legs).toHaveLength(2);
+    expect(legs[0].kind).toBe("stock");
+    expect(legs[0].quantity).toBe(1);
+    expect(legs[1].kind).toBe("call");
+    expect(legs[1].quantity).toBe(-1);
+    expect(legs[1].strike).toBeGreaterThan(500); // OTM call above spot
+  });
+
+  it("applyTickerSnapshot never snaps a stock leg's expiry", () => {
+    usePosition.getState().applyPreset("covered_call");
+    usePosition.getState().applyTickerSnapshot({
+      ticker: "AAPL",
+      spot: 230,
+      as_of: "2026-07-05T00:00:00Z",
+      expiries: [
+        { date: "2026-07-10", days_to_expiry: 5 },
+        { date: "2026-08-01", days_to_expiry: 27 },
+      ],
+      atm_expiry: "2026-08-01",
+      atm_strike: 230,
+      atm_iv: 0.28,
+    });
+    const legs = usePosition.getState().legs;
+    const stock = legs.find((l) => l.kind === "stock")!;
+    const call = legs.find((l) => l.kind === "call")!;
+    expect(stock.expiry_days).toBe(0);          // untouched
+    expect([5, 27]).toContain(call.expiry_days); // snapped to a real expiry
+  });
+});
+
 // === I7 — preset legs snap to nearest available expiry after ticker fetch ===
 describe("I7: preset legs snap to nearest available expiry", () => {
   it("each leg's expiry_days lands on an item from availableExpiries", () => {

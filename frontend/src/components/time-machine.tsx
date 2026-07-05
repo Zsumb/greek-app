@@ -42,7 +42,12 @@ export function TimeMachine() {
   const sigmaMin = Math.max(0.05, sigma); // don't let user push IV below 5%
   const dSigmaMin = -(sigmaMin - 0.01); // floor 1% IV
   const dSigmaMax = 0.3;
-  const minExpiry = legs.length > 0 ? Math.min(...legs.map((l) => l.expiry_days)) : 30;
+  // Only option legs bound the simulation horizon — stock never expires.
+  const optionLegs = legs.filter((l) => l.kind !== "stock");
+  const minExpiry =
+    optionLegs.length > 0
+      ? Math.min(...optionLegs.map((l) => l.expiry_days))
+      : 30;
   const dDaysMax = Math.max(1, minExpiry - 1); // can't simulate past expiry
 
   // Each preset's `target` is the (dS, dSigma, dDays) tuple it would apply.

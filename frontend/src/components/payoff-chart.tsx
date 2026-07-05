@@ -50,13 +50,15 @@ export function PayoffChart() {
   //   - 10% of S     (floor — matches the old default for low-IV names)
   //   - 2.5σ move    (2.5 × S × σ × √T where T uses the shortest leg expiry)
   //   - 1.3 × furthest strike distance from S (make sure all strikes render)
-  const minExpiryDays = legs.length > 0
-    ? Math.min(...legs.map((l) => l.expiry_days))
+  // Stock legs have no expiry/strike — only option legs shape the range.
+  const optionLegs = legs.filter((l) => l.kind !== "stock");
+  const minExpiryDays = optionLegs.length > 0
+    ? Math.min(...optionLegs.map((l) => l.expiry_days))
     : 30;
   const T = Math.max(minExpiryDays, 1) / 365;
   const oneSigmaMove = S * sigma * Math.sqrt(T);
-  const furthestStrikeGap = legs.length > 0
-    ? Math.max(...legs.map((l) => Math.abs(l.strike - S)))
+  const furthestStrikeGap = optionLegs.length > 0
+    ? Math.max(...optionLegs.map((l) => Math.abs(l.strike - S)))
     : 0;
   const buffer = Math.max(
     S * 0.10,
