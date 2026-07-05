@@ -286,3 +286,162 @@ def test_E10_long_straddle_iv_crush_loses_money():
     # Vega should be the dominant driver here (no spot/time shock)
     assert abs(res.vega_contribution) > abs(res.delta_contribution)
     assert abs(res.vega_contribution) > abs(res.theta_contribution)
+
+
+# ===========================================================================
+# === Phase A additions: per-leg IV, stock legs, entry price ===
+# ===========================================================================
+
+
+# === Per-leg IV (skew) ===
+
+def test_per_leg_sigma_overrides_position_sigma():
+    """A leg with its own IV prices differently from the flat-IV position."""
+    flat = Position(
+        legs=[Leg(kind="call", strike=K0, expiry_days=30, quantity=1)],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    skewed = Position(
+        legs=[Leg(kind="call", strike=K0, expiry_days=30, quantity=1, sigma=0.30)],
+        S=S0, sigma=SIG0, r=R0,  # position IV 20%, leg IV 30%
+    )
+    assert skewed.price() > flat.price()  # higher IV = more expensive option
+    # And the leg's price matches pricing directly at 30%
+    expected = bs_price(S0, K0, T0, R0, 0.30, "call") * CONTRACT_MULTIPLIER
+    assert skewed.price() == pytest.approx(expected, abs=0.01)
+
+
+def test_skewed_condor_wings_priced_at_own_vol():
+    """Iron condor with realistic put-skew: wings at higher IV than body.
+    Total value must equal the sum of legs each priced at its own vol."""
+    legs = [
+        Leg(kind="put",  strike=480, expiry_days=30, quantity=1,  sigma=0.26),
+        Leg(kind="put",  strike=490, expiry_days=30, quantity=-1, sigma=0.23),
+        Leg(kind="call", strike=510, expiry_days=30, quantity=-1, sigma=0.19),
+        Leg(kind="call", strike=520, expiry_days=30, quantity=1,  sigma=0.18),
+    ]
+    pos = Position(legs=legs, S=S0, sigma=SIG0, r=R0)
+    expected = sum(
+        l.quantity * bs_price(S0, l.strike, 30 / 365, R0, l.sigma, l.kind) * CONTRACT_MULTIPLIER
+        for l in legs
+    )
+    assert pos.price() == pytest.approx(expected, abs=0.01)
+
+
+def test_iv_shock_is_parallel_shift_across_leg_sigmas():
+    """dSigma moves every leg's OWN vol by the same amount (skew preserved)."""
+    pos = Position(
+        legs=[
+            Leg(kind="call", strike=K0, expiry_days=30, quantity=1, sigma=0.30),
+            Leg(kind="put",  strike=K0, expiry_days=30, quantity=1, sigma=0.25),
+        ],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    shocked = pos.price(dSigma=0.02)
+    expected = (
+        bs_price(S0, K0, T0, R0, 0.32, "call")
+        + bs_price(S0, K0, T0, R0, 0.27, "put")
+    ) * CONTRACT_MULTIPLIER
+    assert shocked == pytest.approx(expected, abs=0.01)
+
+
+def test_iv_shock_floors_at_min_sigma():
+    """A crush bigger than the leg's IV floors at MIN_SIGMA instead of going negative."""
+    pos = Position(
+        legs=[Leg(kind="call", strike=K0, expiry_days=30, quantity=1, sigma=0.05)],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    # -10 vol-pts on a 5% IV leg → floored, price stays finite and >= intrinsic
+    crushed = pos.price(dSigma=-0.10)
+    assert crushed >= 0.0
+    assert math.isfinite(crushed)
+
+
+# === Stock legs ===
+
+def test_stock_leg_greeks():
+    """1 stock leg (100 shares): delta=100, all other Greeks zero, value = 100·S."""
+    pos = Position(
+        legs=[Leg(kind="stock", strike=0, expiry_days=0, quantity=1)],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    g = pos.greeks()
+    assert g.price == pytest.approx(S0 * 100)
+    assert g.delta == pytest.approx(100.0)
+    assert g.gamma == 0.0
+    assert g.theta_per_day == 0.0
+    assert g.vega_per_volpoint == 0.0
+    assert g.rho_per_pct == 0.0
+
+
+def test_stock_leg_ignores_time_and_iv_shocks():
+    """Stock value responds to dS only — never to dSigma or dDays."""
+    pos = Position(
+        legs=[Leg(kind="stock", strike=0, expiry_days=0, quantity=1)],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    assert pos.price(dSigma=0.10) == pytest.approx(pos.price())
+    assert pos.price(days_elapsed=30) == pytest.approx(pos.price())
+    assert pos.price(S=S0 + 10) == pytest.approx(pos.price() + 1000.0)
+
+
+def test_covered_call_greek_signs():
+    """Covered call (+100 sh, -1 OTM call): 0 < delta < 100, theta > 0, vega < 0."""
+    pos = Position(
+        legs=[
+            Leg(kind="stock", strike=0, expiry_days=0, quantity=1),
+            Leg(kind="call", strike=K0 + 10, expiry_days=30, quantity=-1),
+        ],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    g = pos.greeks()
+    assert 0 < g.delta < 100          # long stock, capped upside
+    assert g.gamma < 0                # short the call's gamma
+    assert g.theta_per_day > 0        # collect decay
+    assert g.vega_per_volpoint < 0    # short vol
+
+
+def test_covered_call_simulation_flat_market_collects_theta():
+    """Covered call in a flat market: P&L over 5 days ≈ theta collection."""
+    pos = Position(
+        legs=[
+            Leg(kind="stock", strike=0, expiry_days=0, quantity=1),
+            Leg(kind="call", strike=K0 + 10, expiry_days=30, quantity=-1),
+        ],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    res = simulate(pos, dS=0.0, dSigma=0.0, dDays=5)
+    assert res.actual_pnl > 0                      # short call decays in our favor
+    assert res.theta_contribution > 0
+    assert res.delta_contribution == pytest.approx(0.0, abs=1e-9)
+
+
+# === Entry price / cost basis ===
+
+def test_cost_basis_defaults_to_model_price(walkthrough_call):
+    """No entry overrides → cost basis == mark-to-model initial value."""
+    assert walkthrough_call.cost_basis() == pytest.approx(walkthrough_call.price(), abs=1e-9)
+
+
+def test_cost_basis_uses_entry_price_when_set():
+    """entry_price drives cost basis; mark-to-model value is unaffected."""
+    pos = Position(
+        legs=[Leg(kind="call", strike=K0, expiry_days=30, quantity=1, entry_price=10.00)],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    assert pos.cost_basis() == pytest.approx(1000.0)      # user's fill: $10 × 100
+    assert pos.price() == pytest.approx(1246.69, abs=0.5)  # model mark unchanged
+
+
+def test_cost_basis_mixed_overrides():
+    """Overridden legs use entry price; others fall back to model."""
+    pos = Position(
+        legs=[
+            Leg(kind="call", strike=K0, expiry_days=30, quantity=1, entry_price=12.00),
+            Leg(kind="call", strike=K0 + 10, expiry_days=30, quantity=-1),  # model
+        ],
+        S=S0, sigma=SIG0, r=R0,
+    )
+    short_model = bs_price(S0, K0 + 10, 30 / 365, R0, SIG0, "call")
+    expected = 12.00 * 100 - short_model * 100
+    assert pos.cost_basis() == pytest.approx(expected, abs=0.01)

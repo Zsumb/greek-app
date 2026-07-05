@@ -241,6 +241,84 @@ def test_D12_initial_value_matches_sum_of_legs(client):
     assert initial == pytest.approx(sum_legs, abs=0.05)
 
 
+# === Phase A: per-leg IV, stock legs, entry price (API level) ===
+
+def test_stock_leg_accepted_without_strike(client):
+    """Stock legs don't need strike/expiry — validator only enforces them for options."""
+    r = client.post("/position/greeks", json={
+        "S": 500.0, "sigma": 0.20, "r": 0.05,
+        "legs": [{"kind": "stock", "quantity": 1}],
+    })
+    assert r.status_code == 200
+    g = r.json()
+    assert g["delta"] == pytest.approx(100.0)
+    assert g["gamma"] == 0.0
+
+
+def test_option_leg_missing_strike_rejected(client):
+    """Option legs still require a positive strike (default 0 fails validation)."""
+    r = client.post("/position/greeks", json={
+        "S": 500.0, "sigma": 0.20, "r": 0.05,
+        "legs": [{"kind": "call", "expiry_days": 30, "quantity": 1}],
+    })
+    assert r.status_code == 422
+
+
+def test_per_leg_sigma_flows_through_api(client):
+    """Leg-level sigma changes the Greeks vs. flat position IV."""
+    flat = client.post("/position/greeks", json=WALKTHROUGH_POSITION).json()
+    skewed = client.post("/position/greeks", json={
+        **WALKTHROUGH_POSITION,
+        "legs": [{"kind": "call", "strike": 500, "expiry_days": 30,
+                  "quantity": 1, "sigma": 0.30}],
+    }).json()
+    assert skewed["price"] > flat["price"]
+    assert skewed["vega_per_volpoint"] != pytest.approx(flat["vega_per_volpoint"])
+
+
+def test_payoff_cost_basis_with_entry_price(client):
+    """entry_price shifts the P&L baseline: max loss equals the actual fill."""
+    r = client.post("/position/payoff", json={
+        "position": {
+            **WALKTHROUGH_POSITION,
+            "legs": [{"kind": "call", "strike": 500, "expiry_days": 30,
+                      "quantity": 1, "entry_price": 10.00}],
+        },
+        "spot_min": 450, "spot_max": 550, "num_points": 21,
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["cost_basis"] == pytest.approx(1000.0)
+    # Model mark differs from fill
+    assert body["initial_value"] == pytest.approx(1246.69, abs=1.0)
+    # Deep OTM at expiry: lose exactly the $1,000 paid, not the model value
+    assert body["points"][0]["pnl_at_expiry"] == pytest.approx(-1000.0, abs=1.0)
+
+
+def test_payoff_cost_basis_defaults_to_model(client):
+    """Without entry overrides, cost_basis == initial_value (back-compat)."""
+    r = client.post("/position/payoff", json={
+        "position": WALKTHROUGH_POSITION, "num_points": 21,
+    })
+    body = r.json()
+    assert body["cost_basis"] == pytest.approx(body["initial_value"], abs=1e-6)
+
+
+def test_leg_prices_stock_and_skew(client):
+    """leg-prices: stock leg prices at spot; option leg at its own IV."""
+    r = client.post("/position/leg-prices", json={
+        "S": 500.0, "sigma": 0.20, "r": 0.05,
+        "legs": [
+            {"kind": "stock", "quantity": 1},
+            {"kind": "call", "strike": 500, "expiry_days": 30, "quantity": -1, "sigma": 0.30},
+        ],
+    })
+    assert r.status_code == 200
+    prices = r.json()["prices"]
+    assert prices[0] == pytest.approx(500.0)
+    assert prices[1] > 12.44  # 30% IV call worth more than the 20% IV walkthrough price
+
+
 # === F12, F13 — CORS preflight ===
 
 def test_F12_cors_preflight_allowed_origin(client):

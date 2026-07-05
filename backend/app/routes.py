@@ -23,7 +23,8 @@ router = APIRouter()
 
 def _to_position(p: PositionIn) -> Position:
     legs = [
-        Leg(kind=l.kind, strike=l.strike, expiry_days=l.expiry_days, quantity=l.quantity)
+        Leg(kind=l.kind, strike=l.strike, expiry_days=l.expiry_days,
+            quantity=l.quantity, sigma=l.sigma, entry_price=l.entry_price)
         for l in p.legs
     ]
     return Position(legs=legs, S=p.S, sigma=p.sigma, r=p.r)
@@ -50,17 +51,13 @@ def position_greeks(position: PositionIn) -> GreeksOut:
 
 
 @router.post("/position/leg-prices", response_model=LegPricesOut,
-             summary="Per-share Black-Scholes price for each leg")
+             summary="Per-share model price for each leg (per-leg IV respected)")
 def position_leg_prices(position: PositionIn) -> LegPricesOut:
     """Returns one per-share price per leg, in the input order. Multiply by
-    100 × leg.quantity to get the per-leg cost / credit in dollars."""
-    prices = [
-        bs_price(
-            position.S, leg.strike, leg.expiry_days / 365.0,
-            position.r, position.sigma, leg.kind,
-        )
-        for leg in position.legs
-    ]
+    100 × leg.quantity to get the per-leg cost / credit in dollars.
+    Stock legs price at spot; option legs use their own IV when set."""
+    pos = _to_position(position)
+    prices = [pos.leg_model_price(leg) for leg in pos.legs]
     return LegPricesOut(prices=prices)
 
 
@@ -69,6 +66,9 @@ def position_leg_prices(position: PositionIn) -> LegPricesOut:
 def position_payoff(req: PayoffRequest) -> PayoffOut:
     pos = _to_position(req.position)
     initial = pos.price()
+    # P&L is measured against COST BASIS (user's entry fills when provided,
+    # model prices otherwise) so the curve matches the user's broker statement.
+    basis = pos.cost_basis()
     smin = req.spot_min if req.spot_min is not None else req.position.S * 0.9
     smax = req.spot_max if req.spot_max is not None else req.position.S * 1.1
     if smax <= smin:
@@ -80,10 +80,10 @@ def position_payoff(req: PayoffRequest) -> PayoffOut:
         s = float(s)
         points.append(PayoffPoint(
             spot=s,
-            pnl_today=pos.price(S=s) - initial,
-            pnl_at_expiry=pos.price(S=s, days_elapsed=max_dte) - initial,
+            pnl_today=pos.price(S=s) - basis,
+            pnl_at_expiry=pos.price(S=s, days_elapsed=max_dte) - basis,
         ))
-    return PayoffOut(initial_value=initial, points=points)
+    return PayoffOut(initial_value=initial, cost_basis=basis, points=points)
 
 
 @router.post("/position/simulate", response_model=SimulateOut,

@@ -1,15 +1,31 @@
 """Pydantic request/response schemas for the API."""
 from typing import Literal, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # === Inputs ===
 
 class LegIn(BaseModel):
-    kind: Literal["call", "put"]
-    strike: float = Field(gt=0)
-    expiry_days: int = Field(gt=0, description="calendar days from position-open")
-    quantity: int = Field(description="contracts; negative = short")
+    kind: Literal["call", "put", "stock"]
+    strike: float = Field(default=0.0, ge=0, description="ignored for stock legs")
+    expiry_days: int = Field(default=0, ge=0,
+                             description="calendar days from position-open; ignored for stock legs")
+    quantity: int = Field(description="contracts (1 = 100 shares); negative = short")
+    sigma: Optional[float] = Field(default=None, gt=0, lt=5,
+                                   description="per-leg IV override in decimal (0.22 = 22%); "
+                                               "falls back to position sigma")
+    entry_price: Optional[float] = Field(default=None, ge=0,
+                                         description="actual fill per share; affects cost basis only. "
+                                                     "Defaults to model price.")
+
+    @model_validator(mode="after")
+    def _option_legs_need_strike_and_expiry(self):
+        if self.kind != "stock":
+            if self.strike <= 0:
+                raise ValueError("strike must be > 0 for option legs")
+            if self.expiry_days <= 0:
+                raise ValueError("expiry_days must be > 0 for option legs")
+        return self
 
 
 class PositionIn(BaseModel):
@@ -51,7 +67,8 @@ class PayoffPoint(BaseModel):
 
 
 class PayoffOut(BaseModel):
-    initial_value: float
+    initial_value: float  # mark-to-model value at position open
+    cost_basis: float     # entry-price-based basis (equals initial_value when no overrides)
     points: List[PayoffPoint]
 
 

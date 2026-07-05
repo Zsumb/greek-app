@@ -5,6 +5,18 @@ Provides:
   - bs_price, bs_greeks       : single-option pricing and Greeks
   - Greeks, Leg, Position     : data containers
   - simulate, SimulationResult: scenario simulator with P&L decomposition
+
+Leg model notes:
+  - kind "stock": delta=1/share, all other Greeks zero. strike/expiry/sigma
+    are ignored. quantity is in units of 100 shares (qty 1 = 100 shares) so
+    it composes with the option contract multiplier.
+  - leg.sigma: per-leg IV override (decimal). Falls back to position.sigma.
+    This is how skew enters the model — wings priced at their own vol.
+  - leg.entry_price: the user's actual fill per share. Only affects cost
+    basis (net debit/credit, payoff P&L baseline) — mark-to-model pricing
+    and the scenario decomposition are unaffected.
+  - IV shocks are PARALLEL SHIFTS: every option leg's own IV moves by
+    dSigma, preserving skew shape.
 """
 import math
 from dataclasses import dataclass
@@ -13,8 +25,12 @@ from typing import Literal, Optional
 from scipy.stats import norm
 
 
+LegKind = Literal["call", "put", "stock"]
 OptionType = Literal["call", "put"]
 CONTRACT_MULTIPLIER = 100  # standard US equity option = 100 shares
+
+# Floor for shocked IVs so a large negative dSigma can't push vol to <= 0.
+MIN_SIGMA = 0.001
 
 
 def bs_price(S: float, K: float, T: float, r: float, sigma: float, kind: OptionType) -> float:
@@ -75,10 +91,12 @@ def bs_greeks(S: float, K: float, T: float, r: float, sigma: float, kind: Option
 
 @dataclass
 class Leg:
-    kind: OptionType
+    kind: LegKind
     strike: float
     expiry_days: int
     quantity: int
+    sigma: Optional[float] = None        # per-leg IV override (decimal)
+    entry_price: Optional[float] = None  # actual fill per share
 
 
 @dataclass
@@ -88,26 +106,75 @@ class Position:
     sigma: float
     r: float
 
-    def price(self, S: Optional[float] = None, sigma: Optional[float] = None,
-              days_elapsed: int = 0) -> float:
-        S_use = S if S is not None else self.S
-        sig_use = sigma if sigma is not None else self.sigma
+    # --- per-leg helpers -------------------------------------------------
+
+    def _leg_sigma(self, leg: Leg, dSigma: float = 0.0) -> float:
+        """Effective IV for a leg: its own override or the position IV,
+        parallel-shifted by dSigma, floored so shocked vol stays positive."""
+        base = leg.sigma if leg.sigma is not None else self.sigma
+        return max(MIN_SIGMA, base + dSigma)
+
+    def leg_model_price(self, leg: Leg) -> float:
+        """Model price PER SHARE at position-open state (no shocks)."""
+        if leg.kind == "stock":
+            return self.S
+        return bs_price(
+            self.S, leg.strike, leg.expiry_days / 365.0,
+            self.r, self._leg_sigma(leg), leg.kind,
+        )
+
+    def cost_basis(self) -> float:
+        """Total dollars paid (positive = debit) using the user's entry
+        prices where given, model prices otherwise."""
         total = 0.0
         for leg in self.legs:
-            T_rem = max(0.0, (leg.expiry_days - days_elapsed) / 365.0)
-            per_share = bs_price(S_use, leg.strike, T_rem, self.r, sig_use, leg.kind)
+            per_share = (leg.entry_price if leg.entry_price is not None
+                         else self.leg_model_price(leg))
             total += leg.quantity * per_share * CONTRACT_MULTIPLIER
         return total
 
-    def greeks(self, S: Optional[float] = None, sigma: Optional[float] = None,
-               days_elapsed: int = 0) -> Greeks:
+    # --- aggregate valuation ---------------------------------------------
+
+    def price(self, S: Optional[float] = None, dSigma: float = 0.0,
+              days_elapsed: int = 0) -> float:
+        """Mark-to-model value of the whole position under an optional shock."""
         S_use = S if S is not None else self.S
-        sig_use = sigma if sigma is not None else self.sigma
+        total = 0.0
+        for leg in self.legs:
+            if leg.kind == "stock":
+                total += leg.quantity * S_use * CONTRACT_MULTIPLIER
+                continue
+            T_rem = max(0.0, (leg.expiry_days - days_elapsed) / 365.0)
+            per_share = bs_price(
+                S_use, leg.strike, T_rem, self.r,
+                self._leg_sigma(leg, dSigma), leg.kind,
+            )
+            total += leg.quantity * per_share * CONTRACT_MULTIPLIER
+        return total
+
+    def greeks(self, S: Optional[float] = None, dSigma: float = 0.0,
+               days_elapsed: int = 0) -> Greeks:
+        """Aggregate Greeks under an optional shock. Stock legs contribute
+        delta only (1 per share)."""
+        S_use = S if S is not None else self.S
         agg = Greeks(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
         for leg in self.legs:
-            T_rem = max(0.0, (leg.expiry_days - days_elapsed) / 365.0)
-            g = bs_greeks(S_use, leg.strike, T_rem, self.r, sig_use, leg.kind)
             q = leg.quantity * CONTRACT_MULTIPLIER
+            if leg.kind == "stock":
+                agg = Greeks(
+                    price=agg.price + S_use * q,
+                    delta=agg.delta + 1.0 * q,
+                    gamma=agg.gamma,
+                    theta_per_day=agg.theta_per_day,
+                    vega_per_volpoint=agg.vega_per_volpoint,
+                    rho_per_pct=agg.rho_per_pct,
+                )
+                continue
+            T_rem = max(0.0, (leg.expiry_days - days_elapsed) / 365.0)
+            g = bs_greeks(
+                S_use, leg.strike, T_rem, self.r,
+                self._leg_sigma(leg, dSigma), leg.kind,
+            )
             agg = Greeks(
                 price=agg.price + g.price * q,
                 delta=agg.delta + g.delta * q,
@@ -133,12 +200,17 @@ class SimulationResult:
 
 
 def simulate(position: Position, dS: float, dSigma: float, dDays: int) -> SimulationResult:
-    """Simulate `position` under a scenario shock; return P&L + decomposition."""
+    """Simulate `position` under a scenario shock; return P&L + decomposition.
+
+    dSigma is a PARALLEL IV shift: each option leg's own IV (override or
+    position-level) moves by dSigma. Stock legs are unaffected by dSigma
+    and dDays.
+    """
     initial = position.greeks()
     new_S = position.S + dS
-    new_sigma = position.sigma + dSigma
 
-    actual_pnl = position.price(S=new_S, sigma=new_sigma, days_elapsed=dDays) - position.price()
+    actual_pnl = (position.price(S=new_S, dSigma=dSigma, days_elapsed=dDays)
+                  - position.price())
 
     delta_c = initial.delta * dS
     gamma_c = 0.5 * initial.gamma * (dS ** 2)
@@ -148,7 +220,7 @@ def simulate(position: Position, dS: float, dSigma: float, dDays: int) -> Simula
     sum_c = delta_c + gamma_c + theta_c + vega_c
     residual = actual_pnl - sum_c
 
-    new_greeks = position.greeks(S=new_S, sigma=new_sigma, days_elapsed=dDays)
+    new_greeks = position.greeks(S=new_S, dSigma=dSigma, days_elapsed=dDays)
 
     return SimulationResult(
         actual_pnl=actual_pnl,

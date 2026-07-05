@@ -178,8 +178,15 @@ def _format_position_context(position: Position) -> str:
     for i, leg in enumerate(position.legs, 1):
         side = "Long" if leg.quantity > 0 else "Short"
         qty = abs(leg.quantity)
+        if leg.kind == "stock":
+            legs_lines.append(f"  {i}. {side} {qty * 100} shares of the underlying")
+            continue
+        iv_note = f", IV {leg.sigma * 100:.1f}%" if leg.sigma is not None else ""
+        entry_note = (f", entry ${leg.entry_price:.2f}/sh"
+                      if leg.entry_price is not None else "")
         legs_lines.append(
-            f"  {i}. {side} {qty} {leg.kind} @ strike ${leg.strike:.0f}, expiry in {leg.expiry_days} days"
+            f"  {i}. {side} {qty} {leg.kind} @ strike ${leg.strike:.0f}, "
+            f"expiry in {leg.expiry_days} days{iv_note}{entry_note}"
         )
     legs_block = "\n".join(legs_lines) if legs_lines else "  (no legs)"
     return (
